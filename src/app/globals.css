@@ -18,7 +18,7 @@ a {
 }
 
 .chapter-content p {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.1rem;
 }
 
 .chapter-content h1,
@@ -32,4 +32,16 @@ a {
 
 .chapter-content em {
   color: var(--muted);
+}
+
+.chapter-content * {
+  color: var(--foreground);
+  font-family: inherit;
+}
+
+.chapter-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1rem auto;
 }

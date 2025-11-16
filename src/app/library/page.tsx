@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EpubImport } from "@/components/epub-import";
 import { SignOutButton } from "@/components/sign-out-button";
+import { LibraryItemActions } from "@/components/library-item-actions";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -50,20 +51,40 @@ export default async function LibraryPage() {
             ? String(novel.description).replace(/<[^>]+>/g, "").trim()
             : null;
           return (
-            <Link
+            <div
               key={novel.id}
-              href={`/reader/${novel.id}`}
-              className="flex flex-col gap-2 px-4 py-5 text-left transition hover:bg-zinc-900/50"
+              className="flex flex-col gap-3 px-4 py-5 transition hover:bg-zinc-900/50 md:flex-row md:items-center"
             >
-              <div className="flex items-center justify-between text-sm text-zinc-500">
-                <span>{novel.author || "Unknown"}</span>
-                <span>{novel._count.chapters} chapters</span>
+              <Link href={`/reader/${novel.id}`} className="flex flex-1 gap-4 text-left">
+                <div className="h-20 w-16 flex-shrink-0 border border-zinc-800 bg-zinc-900/40">
+                  {novel.coverImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={novel.coverImage}
+                      alt={`${novel.title} cover`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-[0.3em] text-zinc-600">
+                      no cover
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col gap-1">
+                  <div className="flex items-center justify-between text-sm text-zinc-500">
+                    <span>{novel.author || "Unknown"}</span>
+                    <span>{novel._count.chapters} chapters</span>
+                  </div>
+                  <h2 className="text-lg text-zinc-100">{novel.title}</h2>
+                {summary && (
+                  <p className="max-h-10 overflow-hidden text-ellipsis text-sm text-zinc-500">
+                    {summary}
+                  </p>
+                )}
               </div>
-              <h2 className="text-lg text-zinc-100">{novel.title}</h2>
-              {summary && (
-                <p className="truncate text-sm text-zinc-500">{summary}</p>
-              )}
             </Link>
+              <LibraryItemActions novelId={novel.id} title={novel.title} />
+            </div>
           );
         })}
       </section>
