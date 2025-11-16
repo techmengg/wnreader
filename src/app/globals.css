@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+:root {
+  --background: #020202;
+  --foreground: #f4f4f4;
+  --muted: #5c5c5c;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-space-mono, "Space Mono", ui-monospace, "SFMono-Regular", Consolas, monospace);
+  letter-spacing: 0.01em;
+}
+
+a {
+  text-decoration: none;
+}
+
+.chapter-content p {
+  margin-bottom: 1.5rem;
+}
+
+.chapter-content h1,
+.chapter-content h2,
+.chapter-content h3 {
+  margin: 2rem 0 1rem;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.chapter-content em {
+  color: var(--muted);
+}
