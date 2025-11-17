@@ -5,7 +5,7 @@ const publicRoutes = ["/login", "/register", "/api/register"];
 
 export default authEdge((request) => {
   const { nextUrl } = request;
-  const isAuthenticated = Boolean(request.auth?.user);
+  const isAuthenticated = Boolean(request.auth?.user?.id);
   const pathname = nextUrl.pathname;
 
   const isPublic = publicRoutes.some((route) => pathname.startsWith(route));

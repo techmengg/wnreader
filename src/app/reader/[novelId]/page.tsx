@@ -21,7 +21,7 @@ export default async function ReaderPage({ params, searchParams }: ReaderPagePro
   const search = await searchParams;
   const session = await auth();
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
 
@@ -29,7 +29,7 @@ export default async function ReaderPage({ params, searchParams }: ReaderPagePro
   const novel = await prisma.novel.findFirst({
     where: {
       id: novelId,
-      userId: session.user.id,
+      userId: session.user.id!,
     },
     select: {
       id: true,

@@ -13,13 +13,13 @@ export const revalidate = 0;
 export default async function LibraryPage() {
   const session = await auth();
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
 
   // Optimized query with indexed fields
   const novels = await prisma.novel.findMany({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id! },
     orderBy: { updatedAt: "desc" },
     select: {
       id: true,
