@@ -37,6 +37,7 @@ export default async function ReaderPage({ params, searchParams }: ReaderPagePro
       author: true,
       description: true,
       coverImage: true,
+      lastReadChapterId: true,
       chapters: {
         orderBy: { position: "asc" },
         select: {
@@ -53,7 +54,22 @@ export default async function ReaderPage({ params, searchParams }: ReaderPagePro
   }
 
   const requestedIndex = Number(search.chapter);
-  const initialIndex = Number.isFinite(requestedIndex) ? requestedIndex : 0;
+  const totalChapters = novel.chapters.length;
+  const clampedRequested =
+    Number.isFinite(requestedIndex) && totalChapters > 0
+      ? Math.min(Math.max(requestedIndex, 0), totalChapters - 1)
+      : null;
+
+  let initialIndex = clampedRequested ?? 0;
+
+  if (clampedRequested === null && novel.lastReadChapterId && totalChapters > 0) {
+    const lastIndex = novel.chapters.findIndex(
+      (chapter) => chapter.id === novel.lastReadChapterId
+    );
+    if (lastIndex >= 0) {
+      initialIndex = lastIndex;
+    }
+  }
 
   return <ReaderView novel={novel} initialIndex={initialIndex} />;
 }

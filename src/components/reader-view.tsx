@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, memo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, memo, useRef, forwardRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -29,6 +29,7 @@ type ReaderNovel = {
   author?: string | null;
   description?: string | null;
   coverImage?: string | null;
+  lastReadChapterId?: string | null;
   chapters: ReaderChapter[];
 };
 
@@ -86,18 +87,19 @@ const processHTMLForTTS = (html: string): string => {
   return tempDiv.innerHTML;
 };
 
-const ChapterButton = memo(({ 
-  chapter, 
-  active, 
-  onClick,
-  theme,
-}: { 
-  chapter: ReaderChapter; 
-  active: boolean; 
-  onClick: () => void;
-  theme: typeof THEMES.dark;
-}) => (
+const ChapterButton = memo(
+  forwardRef<HTMLButtonElement, {
+    chapter: ReaderChapter;
+    active: boolean;
+    onClick: () => void;
+    theme: typeof THEMES.dark;
+  }>(function ChapterButton(
+    { chapter, active, onClick, theme },
+    ref
+  ) {
+    return (
   <button
+    ref={ref}
     type="button"
     onClick={onClick}
     className="group relative w-full rounded-lg px-4 py-3 text-left text-sm transition-all active:scale-98"
@@ -129,7 +131,9 @@ const ChapterButton = memo(({
       )}
     </div>
   </button>
-));
+    );
+  })
+);
 
 ChapterButton.displayName = "ChapterButton";
 
@@ -157,8 +161,20 @@ export const ReaderView = memo(function ReaderView({ novel, initialIndex }: Read
     onSkipParagraph: () => void;
     onRateChange: (rate: number) => void;
     onVolumeChange: (volume: number) => void;
+    capabilities?: {
+      canAdjustRate: boolean;
+      canSkipParagraphs: boolean;
+      provider: "browser" | "elevenlabs";
+    };
   } | null>(null);
+  const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(false);
+  const [autoAdvanceTargetChapterId, setAutoAdvanceTargetChapterId] = useState<string | null>(null);
+  const [autoStartPlaybackKey, setAutoStartPlaybackKey] = useState(0);
   const articleRef = useRef<HTMLDivElement>(null);
+  const activeChapterButtonRef = useRef<HTMLButtonElement | null>(null);
+  const setActiveChapterButtonRef = useCallback((node: HTMLButtonElement | null) => {
+    activeChapterButtonRef.current = node;
+  }, []);
 
   // Load preferences on mount
   useEffect(() => {
@@ -224,6 +240,35 @@ export const ReaderView = memo(function ReaderView({ novel, initialIndex }: Read
     handleNavigate(currentIndex - 1);
   }, [currentIndex, handleNavigate]);
 
+  const handleAutoAdvanceChange = useCallback((enabled: boolean) => {
+    setAutoAdvanceEnabled(enabled);
+    if (!enabled) {
+      setAutoAdvanceTargetChapterId(null);
+    }
+  }, []);
+
+  const handleAutoAdvanceRequestNextChapter = useCallback(() => {
+    if (!autoAdvanceEnabled) return;
+    if (currentIndex >= maxIndex) return;
+    const nextIndex = currentIndex + 1;
+    const nextChapter = novel.chapters[nextIndex];
+    if (!nextChapter) return;
+    setAutoAdvanceTargetChapterId(nextChapter.id);
+    handleNavigate(nextIndex);
+  }, [autoAdvanceEnabled, currentIndex, handleNavigate, maxIndex, novel.chapters]);
+
+  useEffect(() => {
+    if (activePanel !== "chapters") return;
+    const target = activeChapterButtonRef.current;
+    if (!target) return;
+    const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+    if (isMobile && !isMobileNavOpen) return;
+    target.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, [activePanel, currentIndex, isMobileNavOpen]);
+
   // Handle TTS highlighting and auto-scroll
   useEffect(() => {
     if (ttsWordIndex < 0 || !articleRef.current) return;
@@ -272,12 +317,71 @@ export const ReaderView = memo(function ReaderView({ novel, initialIndex }: Read
     () => novel.chapters[currentIndex],
     [currentIndex, novel.chapters]
   );
+  const rawChapterContent = currentChapter?.content ?? "";
+  const [processedContent, setProcessedContent] = useState(rawChapterContent);
 
-  // Process chapter content for TTS
-  const processedContent = useMemo(() => {
-    if (!currentChapter?.content) return "<p>No content imported.</p>";
-    return processHTMLForTTS(currentChapter.content);
-  }, [currentChapter?.content]);
+  useEffect(() => {
+    setProcessedContent(rawChapterContent);
+    if (typeof window === "undefined") return;
+    setProcessedContent(processHTMLForTTS(rawChapterContent));
+  }, [rawChapterContent]);
+
+  const currentChapterId = currentChapter?.id;
+  const lastPersistedChapterIdRef = useRef<string | null>(null);
+  const hasNextChapter = currentIndex < maxIndex;
+
+  useEffect(() => {
+    if (!currentChapterId) return;
+    if (lastPersistedChapterIdRef.current === currentChapterId) return;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(async () => {
+      try {
+        await fetch(`/api/novels/${novel.id}/progress`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ chapterId: currentChapterId }),
+          keepalive: true,
+          signal: controller.signal,
+        });
+        lastPersistedChapterIdRef.current = currentChapterId;
+      } catch (error) {
+        if ((error as DOMException)?.name === "AbortError") return;
+        console.error("Failed to save reading progress:", error);
+      }
+    }, 500);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [currentChapterId, novel.id]);
+
+  useEffect(() => {
+    if (!autoAdvanceEnabled) {
+      setAutoAdvanceTargetChapterId(null);
+      return;
+    }
+    if (!autoAdvanceTargetChapterId) return;
+    if (!currentChapterId || currentChapterId !== autoAdvanceTargetChapterId) return;
+    setAutoAdvanceTargetChapterId(null);
+    setAutoStartPlaybackKey((key) => key + 1);
+  }, [autoAdvanceEnabled, autoAdvanceTargetChapterId, currentChapterId]);
+
+  const ttsStopRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    ttsStopRef.current = ttsState?.onStop ?? null;
+  }, [ttsState]);
+
+  useEffect(() => {
+    return () => {
+      setAutoAdvanceTargetChapterId(null);
+      ttsStopRef.current?.();
+    };
+  }, []);
 
   const navItems: Array<{
     key: "chapters" | "preference" | "tts";
@@ -321,8 +425,11 @@ export const ReaderView = memo(function ReaderView({ novel, initialIndex }: Read
           ))}
         </div>
       <div className="flex flex-1 flex-col overflow-hidden px-5 py-5 text-xs" role="tabpanel">
-          {activePanel === "chapters" && (
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-2 scrollbar-thin">
+          <div
+            className={`${
+              activePanel === "chapters" ? "flex" : "hidden"
+            } min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-2 scrollbar-thin`}
+          >
               <div className="mb-2 flex items-center justify-between">
                 <span 
                   className="text-[0.65rem] uppercase tracking-[0.25em]"
@@ -339,6 +446,7 @@ export const ReaderView = memo(function ReaderView({ novel, initialIndex }: Read
               </div>
               {novel.chapters.map((chapter, index) => (
                 <ChapterButton
+                  ref={index === currentIndex ? setActiveChapterButtonRef : undefined}
                   key={chapter.id}
                   chapter={chapter}
                   active={index === currentIndex}
@@ -349,22 +457,26 @@ export const ReaderView = memo(function ReaderView({ novel, initialIndex }: Read
                   }}
                 />
               ))}
-            </div>
-          )}
-          {activePanel === "preference" && (
+          </div>
+          <div className={activePanel === "preference" ? "block" : "hidden"}>
             <ReaderPreferencesPanel
               preferences={preferences}
               onUpdate={handlePreferencesUpdate}
             />
-          )}
-          {activePanel === "tts" && (
-            <TTSPanel
-              chapterContent={currentChapter?.content || ""}
-              onWordChange={setTtsWordIndex}
-              onTTSStateChange={setTtsState}
-              theme={currentTheme}
-            />
-          )}
+          </div>
+          <div className={activePanel === "tts" ? "block" : "hidden"}>
+          <TTSPanel
+            chapterContent={currentChapter?.content || ""}
+            onWordChange={setTtsWordIndex}
+            onTTSStateChange={setTtsState}
+            autoAdvanceEnabled={autoAdvanceEnabled}
+            onAutoAdvanceChange={handleAutoAdvanceChange}
+            onAutoAdvanceRequestNextChapter={handleAutoAdvanceRequestNextChapter}
+            hasNextChapter={currentIndex < maxIndex}
+            autoStartKey={autoStartPlaybackKey}
+            theme={currentTheme}
+          />
+        </div>
         </div>
     </>
   );
@@ -690,6 +802,7 @@ export const ReaderView = memo(function ReaderView({ novel, initialIndex }: Read
           onSkipParagraph={ttsState.onSkipParagraph}
           onRateChange={ttsState.onRateChange}
           onVolumeChange={ttsState.onVolumeChange}
+          capabilities={ttsState.capabilities}
           theme={currentTheme}
         />
       )}

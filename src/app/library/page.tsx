@@ -28,6 +28,14 @@ export default async function LibraryPage() {
       description: true,
       coverImage: true,
       updatedAt: true,
+      lastReadAt: true,
+      lastReadChapter: {
+        select: {
+          id: true,
+          title: true,
+          position: true,
+        },
+      },
       _count: {
         select: { chapters: true },
       },
@@ -61,6 +69,14 @@ export default async function LibraryPage() {
           const summary = novel.description
             ? String(novel.description).replace(/<[^>]+>/g, "").trim()
             : null;
+          const totalChapters = novel._count.chapters;
+          const lastReadPosition = novel.lastReadChapter?.position ?? null;
+          const currentChapterNumber =
+            typeof lastReadPosition === "number"
+              ? Math.min(lastReadPosition + 1, totalChapters)
+              : 0;
+          const progressLabel =
+            totalChapters > 0 ? `${currentChapterNumber}/${totalChapters}` : "0/0";
           return (
             <div
               key={novel.id}
@@ -85,7 +101,14 @@ export default async function LibraryPage() {
                 <div className="flex flex-1 flex-col gap-0.5 md:gap-1">
                   <div className="flex items-center justify-between text-xs md:text-sm text-zinc-500">
                     <span className="truncate">{novel.author || "Unknown"}</span>
-                    <span className="ml-2 flex-shrink-0">{novel._count.chapters}</span>
+                    <span className="ml-2 flex-shrink-0">
+                      {progressLabel}
+                      {novel.lastReadChapter?.title && (
+                        <span className="ml-1 hidden text-[10px] uppercase tracking-[0.25em] text-zinc-600 md:inline">
+                          {novel.lastReadChapter.title}
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <h2 className="text-sm md:text-lg text-zinc-100 leading-tight">{novel.title}</h2>
                 {summary && (

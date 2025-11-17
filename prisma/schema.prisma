@@ -62,9 +62,12 @@ model Novel {
   author      String?
   description String?   @db.Text
   coverImage  String?
+  lastReadChapterId String?
+  lastReadAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   chapters    Chapter[]
+  lastReadChapter Chapter? @relation("LastReadChapter", fields: [lastReadChapterId], references: [id])
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, updatedAt(sort: Desc)])
@@ -79,6 +82,7 @@ model Chapter {
   content   String   @db.Text
   createdAt DateTime @default(now())
   novel     Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  lastReadBy Novel[] @relation("LastReadChapter")
 
   @@index([novelId, position])
 }
