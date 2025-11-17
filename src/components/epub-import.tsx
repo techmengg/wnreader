@@ -8,51 +8,84 @@ export const EpubImport = memo(function EpubImport() {
   const [status, setStatus] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const handleChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
-    if (!file) return;
+  const handleChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const input = event.currentTarget;
+      const file = input.files?.[0];
+      if (!file) return;
 
-    const MAX_FILE_SIZE_MB = 4;
-    const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setStatus(`File too large. Maximum size is ${MAX_FILE_SIZE_MB}MB.`);
-      input.value = "";
-      return;
-    }
+      setIsUploading(true);
+      setStatus("Uploading...");
 
-    setIsUploading(true);
-    setStatus("importing...");
-    const payload = new FormData();
-    payload.append("file", file);
+      try {
+        const filename = file.name || "upload.epub";
+        const contentType = file.type || "application/epub+zip";
 
-    try {
-      const response = await fetch("/api/import", {
-        method: "POST",
-        body: payload,
-      });
+        const uploadUrlResponse = await fetch("/api/import/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename, contentType }),
+        });
 
-      if (!response.ok) {
-        const data = (await response.json().catch(() => ({}))) as {
-          error?: string;
-        };
-        setStatus(data.error || "Import failed.");
-        setIsUploading(false);
-      } else {
-        setStatus("imported");
-        router.refresh();
-        setTimeout(() => {
-          setStatus(null);
+        if (!uploadUrlResponse.ok) {
+          const data = (await uploadUrlResponse.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          setStatus(data.error || "Failed to prepare upload.");
           setIsUploading(false);
-        }, 2000);
-      }
-    } catch (error) {
-      setStatus("Network error. Please try again.");
-      setIsUploading(false);
-    }
+          input.value = "";
+          return;
+        }
 
-    input.value = "";
-  }, [router]);
+        const { uploadUrl, key } = (await uploadUrlResponse.json()) as {
+          uploadUrl: string;
+          key: string;
+        };
+
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": contentType },
+          body: file,
+        });
+
+        if (!uploadResponse.ok) {
+          setStatus("Upload failed. Please try a smaller file.");
+          setIsUploading(false);
+          input.value = "";
+          return;
+        }
+
+        setStatus("Importing...");
+
+        const importResponse = await fetch("/api/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key, filename }),
+        });
+
+        if (!importResponse.ok) {
+          const data = (await importResponse.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          setStatus(data.error || "Import failed.");
+          setIsUploading(false);
+        } else {
+          setStatus("Imported");
+          router.refresh();
+          setTimeout(() => {
+            setStatus(null);
+            setIsUploading(false);
+          }, 2000);
+        }
+      } catch {
+        setStatus("Network error. Please try again.");
+        setIsUploading(false);
+      }
+
+      input.value = "";
+    },
+    [router]
+  );
 
   return (
     <label className={`relative flex w-full flex-col gap-1.5 md:gap-2 border border-zinc-800 bg-black/40 px-3 md:px-5 py-4 md:py-6 text-xs md:text-sm text-zinc-400 transition ${
