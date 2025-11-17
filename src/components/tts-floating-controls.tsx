@@ -13,6 +13,11 @@ interface TTSFloatingControlsProps {
   onSkipParagraph: () => void;
   onRateChange: (rate: number) => void;
   onVolumeChange: (volume: number) => void;
+  capabilities?: {
+    canAdjustRate: boolean;
+    canSkipParagraphs: boolean;
+    provider?: "browser" | "elevenlabs";
+  };
   theme: {
     background: string;
     foreground: string;
@@ -36,9 +41,13 @@ export const TTSFloatingControls = memo(function TTSFloatingControls({
   onSkipParagraph,
   onRateChange,
   onVolumeChange,
+  capabilities,
   theme,
 }: TTSFloatingControlsProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const canAdjustRate = capabilities?.canAdjustRate ?? true;
+  const canSkipParagraphs = capabilities?.canSkipParagraphs ?? true;
+  const providerLabel = capabilities?.provider;
 
   if (!isPlaying) return null;
 
@@ -126,13 +135,13 @@ export const TTSFloatingControls = memo(function TTSFloatingControls({
                   className="text-xs font-medium uppercase tracking-[0.3em]"
                   style={{ color: theme.foreground }}
                 >
-                  Quick Controls
+                  Voice Controls
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full transition-all active:scale-95"
-                  style={{ color: theme.muted }}
+                  className="rounded p-1 transition-colors"
+                  style={{ color: theme.mutedForeground }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = theme.hover;
                   }}
@@ -154,14 +163,14 @@ export const TTSFloatingControls = memo(function TTSFloatingControls({
                   <button
                     type="button"
                     onClick={onPlayPause}
-                    className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium uppercase tracking-[0.2em] transition-all active:scale-95"
-                    style={{
-                      backgroundColor: theme.active,
-                      color: theme.activeForeground,
-                    }}
-                  >
-                    {isPaused ? "▶ Resume" : "⏸ Pause"}
-                  </button>
+                  className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium uppercase tracking-[0.2em] transition-all active:scale-95"
+                  style={{
+                    backgroundColor: theme.active,
+                    color: theme.activeForeground,
+                  }}
+                >
+                  {isPaused ? "Unpause" : "Pause"}
+                </button>
                   <button
                     type="button"
                     onClick={onStop}
@@ -171,22 +180,35 @@ export const TTSFloatingControls = memo(function TTSFloatingControls({
                       color: theme.foreground,
                     }}
                   >
-                    ⏹
+                    Stop
                   </button>
                 </div>
 
                 {/* Skip Paragraph */}
-                <button
-                  type="button"
-                  onClick={onSkipParagraph}
-                  className="w-full rounded-lg px-4 py-2.5 text-sm font-medium uppercase tracking-[0.2em] transition-all active:scale-95"
-                  style={{
-                    border: `1px solid ${theme.border}`,
-                    color: theme.foreground,
-                  }}
-                >
-                  ⏭ Skip Paragraph
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={onSkipParagraph}
+                    disabled={!canSkipParagraphs}
+                    className="w-full rounded-lg px-4 py-2.5 text-sm font-medium uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50"
+                    style={{
+                      border: `1px solid ${theme.border}`,
+                      color: theme.foreground,
+                    }}
+                    title={
+                      !canSkipParagraphs && providerLabel === "elevenlabs"
+                        ? "Paragraph skipping is disabled for ElevenLabs audio."
+                        : undefined
+                    }
+                  >
+                    Skip Paragraph
+                  </button>
+                  {!canSkipParagraphs && providerLabel === "elevenlabs" && (
+                    <p className="text-[0.65rem]" style={{ color: theme.mutedForeground }}>
+                      Not available for ElevenLabs voices yet.
+                    </p>
+                  )}
+                </div>
 
                 {/* Speed Control */}
                 <div>
@@ -211,6 +233,7 @@ export const TTSFloatingControls = memo(function TTSFloatingControls({
                     step="0.1"
                     value={rate}
                     onChange={(e) => onRateChange(Number(e.target.value))}
+                    disabled={!canAdjustRate}
                     className="w-full"
                   />
                   <div className="mt-1 flex justify-between text-xs" style={{ color: theme.mutedForeground }}>
@@ -218,6 +241,11 @@ export const TTSFloatingControls = memo(function TTSFloatingControls({
                     <span>1.0x</span>
                     <span>2.0x</span>
                   </div>
+                  {!canAdjustRate && providerLabel === "elevenlabs" && (
+                    <p className="mt-1 text-[0.65rem]" style={{ color: theme.mutedForeground }}>
+                      Speed adjustments are not supported for ElevenLabs audio yet.
+                    </p>
+                  )}
                 </div>
 
                 {/* Volume Control */}
@@ -259,5 +287,3 @@ export const TTSFloatingControls = memo(function TTSFloatingControls({
     </>
   );
 });
-
-

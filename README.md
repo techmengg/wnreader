@@ -7,6 +7,7 @@ A minimal blacked-out web reader for personal webnovels. Import `.epub` files, k
 - EPUB ingestion pipeline that parses the container + spine, extracts chapters, and stores each chapter body in the database.
 - Library view to trigger imports and jump into any stored novel.
 - Reader page with focus mode typography, chapter navigation, and prev/next controls.
+- Automatic reading progress tracking—each novel opens on the last chapter you read unless you request another one.
 
 ### Stack
 - Next.js 16 (App Router, Server Components, Tailwind)
@@ -32,6 +33,10 @@ A minimal blacked-out web reader for personal webnovels. Import `.epub` files, k
    DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
    NEXTAUTH_SECRET="generate-a-long-random-string"
    NEXTAUTH_URL="http://localhost:3000" # adjust per environment
+   # Optional: enable ElevenLabs voices in the reader
+   ELEVENLABS_API_KEY="your-xi-api-key"
+   ELEVENLABS_DEFAULT_VOICE_ID="voice-id-from-dashboard"
+   ELEVENLABS_MODEL_ID="eleven_multilingual_v2" # override with another ElevenLabs model if needed
    ```
    - If you used the bundled Docker setup, the connection string should be `postgresql://postgres:postgres@localhost:5432/wnreader?schema=public`.
 4. Apply the Prisma schema to your database:
@@ -43,6 +48,12 @@ A minimal blacked-out web reader for personal webnovels. Import `.epub` files, k
    npm run dev
    ```
 6. Navigate to `http://localhost:3000`. You will be directed to the login page; create an account via the linked registration form.
+
+### High-quality voices (ElevenLabs)
+- The reader now has a “Device Voices / ElevenLabs AI” toggle in the TTS panel. Device voices continue to use the browser’s speech synthesis API for instant playback and paragraph skipping.
+- ElevenLabs mode calls the new API routes under `/api/tts/voices` and `/api/tts/speak`, which proxy the ElevenLabs REST API from the server runtime.
+- Set `ELEVENLABS_API_KEY` in `.env` (and optionally `ELEVENLABS_DEFAULT_VOICE_ID`) to expose your ElevenLabs voices in the UI. The client fetches voices on demand and requests audio for each chapter through your key, so usage counts toward your ElevenLabs quota.
+- ElevenLabs playback currently streams audio without per-word highlighting or skip controls; browser TTS remains available as a fallback.
 
 ### Development Notes
 - EPUB parsing happens server-side via `src/lib/epub.ts` using JSZip + fast-xml-parser + Cheerio. The importer currently saves the original HTML chunk per chapter for faithful rendering.
