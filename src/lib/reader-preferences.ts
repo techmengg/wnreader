@@ -148,6 +148,11 @@ export const FONT_FAMILIES = {
   'baskerville': { name: 'Baskerville', family: 'Baskerville, serif', type: 'serif' },
   'caslon': { name: 'Caslon', family: '"Big Caslon", Caslon, serif', type: 'serif' },
   'charter': { name: 'Charter', family: 'Charter, serif', type: 'serif' },
+  'source-serif': {
+    name: 'Source Serif',
+    family: 'var(--font-source-serif, "Source Serif Pro", serif)',
+    type: 'serif',
+  },
   'merriweather': { name: 'Merriweather', family: 'var(--font-merriweather, serif)', type: 'serif' },
   'lora': { name: 'Lora', family: 'var(--font-lora, serif)', type: 'serif' },
   'crimson': { name: 'Crimson Text', family: 'var(--font-crimson, serif)', type: 'serif' },

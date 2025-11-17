@@ -411,7 +411,7 @@ export async function parseEpub(buffer: Buffer, fallbackTitle: string): Promise<
     if (!file) continue;
 
     const rawHtml = await file.async("text");
-    const $ = load(rawHtml, { decodeEntities: false });
+    const $ = load(rawHtml);
     $("script").remove();
 
     // Get directory of the HTML file within the EPUB (relative to EPUB root)
