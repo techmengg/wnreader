@@ -1,6 +1,8 @@
 ## wnreader
 
 A minimal blacked-out web reader for personal webnovels. Import `.epub` files, keep them in Postgres per-account, and read them inside a distraction-free monospace interface.
+<img width="2552" height="1272" alt="wnreader1" src="https://github.com/user-attachments/assets/90b272b4-106d-40c8-9cfa-e8f527ecbf7b" />
+<img width="2552" height="1273" alt="wnreader2" src="https://github.com/user-attachments/assets/b8ce487a-ef58-4c0f-a7ba-b23e803304a8" />
 
 ### Features
 - Email / password auth powered by NextAuth + Prisma (credentials only; accounts live in Postgres).
