@@ -45,23 +45,6 @@ export default async function Home() {
           <p className="max-w-xl text-sm text-zinc-400 sm:text-base">
             Library sync and high-fidelity TTS, without the clutter.
           </p>
-          <div
-            className="flex flex-wrap justify-center gap-6 text-xs uppercase tracking-[0.25em]"
-            id="cta"
-          >
-            <Link
-              href="/register"
-              className="border-b border-zinc-500 pb-1 text-zinc-200 transition hover:border-zinc-300 hover:text-white active:scale-95"
-            >
-              Create account
-            </Link>
-            <Link
-              href="/login"
-              className="text-zinc-400 transition hover:text-white"
-            >
-              Sign in
-            </Link>
-          </div>
         </section>
 
         <section id="features" className="border-t border-zinc-800 py-10 text-sm text-zinc-400">
